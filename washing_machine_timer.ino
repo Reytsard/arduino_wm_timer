@@ -33,6 +33,13 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 const int startButtonPin = 2;
 const int editButtonPin = 3;
+const int DELAYBETWEENRELAYS = 4000; //4s
+const int DURATIONPERSPIN = 5000; //5s
+
+bool isWashing = false;
+bool isChangable = true;
+int minutesValue = 0;
+unsigned long timeRemaining = 0;
 
 Bounce startButtonDebouncer = Bounce();
 Bounce editButtonDebouncer = Bounce();
@@ -64,10 +71,23 @@ void loop() {
 
   if(startButtonDebouncer.fell()){
     //start has been pressed
+    if(minutesValue !== 0){
+      isWashing = true;
+      isChangable = false;
+    }else{
+      isWashing = false;
+      isChangable = true;
+    }
   }
 
   if(editButtonDebouncer.fell()){
     //edit button has been pressed
+    if(isChangable){
+      minutesValue += 5;
+      if(minutesValue > 35){
+        minutesValue = 0;
+      }
+    }
   }
 
 }
