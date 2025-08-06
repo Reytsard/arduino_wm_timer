@@ -26,20 +26,24 @@
 */
 
 #include <Wire.h>
-#include <LiquidCrystal_I2C.h>
+// #include <LiquidCrystal_I2C.h>
 #include <Bounce2.h>
 
-LiquidCrystal_I2C lcd(0x27, 16, 2);
+// LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 const int startButtonPin = 2;
 const int editButtonPin = 3;
-const int DELAYBETWEENRELAYS = 4000; //4s
-const int DURATIONPERSPIN = 5000; //5s
+const int relayInput1Pin = 6;
+const int relayInput2Pin = 5;
+const int DELAYBETWEENRELAYS = 4000;  //4s
+const int DURATIONPERSPIN = 5000;     //5s
 
 bool isWashing = false;
 bool isChangable = true;
 int minutesValue = 0;
-unsigned long timeRemaining = 0;
+long timeRemaining = 0;
+unsigned long relay1LastTimeOperating = 0;
+unsigned long relay2LastTimeOperating = 0;
 
 Bounce startButtonDebouncer = Bounce();
 Bounce editButtonDebouncer = Bounce();
@@ -56,38 +60,75 @@ void setup() {
   editButtonDebouncer.attach(editButtonPin);
   editButtonDebouncer.interval(25);
 
+  pinMode(relayInput1Pin, OUTPUT);
+  digitalWrite(relayInput1Pin, HIGH);
 
-  lcd.init();  // initialize the lcd
+  pinMode(relayInput2Pin, OUTPUT);
+  digitalWrite(relayInput2Pin, HIGH);
+
+  // lcd.init();  // initialize the lcd
   // lcd.backlight();
   // lcd.setCursor(1, 0);
   // lcd.print("Timer:");
   // displayTimer(timerValue);
-
 }
 
 void loop() {
   startButtonDebouncer.update();
   editButtonDebouncer.update();
 
-  if(startButtonDebouncer.fell()){
+  if (startButtonDebouncer.fell()) {
     //start has been pressed
-    if(minutesValue !== 0){
+    Serial.println("Start Button");
+    if (minutesValue != 0 && !isWashing) {
       isWashing = true;
       isChangable = false;
-    }else{
+      timeRemaining = long(minutesValue) * 60 * 1000;
+      Serial.println("Computed Value");
+      Serial.println(timeRemaining);
+    } else if (isWashing) {
       isWashing = false;
       isChangable = true;
+      
+      //turn off motors
+      digitalWrite(relayInput1Pin, HIGH);
+      digitalWrite(relayInput2Pin, HIGH);
+      Serial.println("Turned off relays");
     }
   }
 
-  if(editButtonDebouncer.fell()){
+  if (editButtonDebouncer.fell()) {
     //edit button has been pressed
-    if(isChangable){
+    Serial.println("Edit Button");
+    if (isChangable && !isWashing) {
       minutesValue += 5;
-      if(minutesValue > 35){
+      if (minutesValue > 35) {
         minutesValue = 0;
       }
     }
+    Serial.println(minutesValue);
   }
 
+  if(isWashing && !isChangable){
+    if(digitalRead(relayInput1Pin) == HIGH && digitalRead(relayInput2Pin) == HIGH){
+    relay1LastTimeOperating = millis();
+    digitalWrite(relayInput1Pin, LOW); //turn on CW rotation
+    }
+    if(digitalRead(relayInput2Pin) == HIGH && ((millis() - relay1LastTimeOperating) >= long(DURATIONPERSPIN))){
+      digitalWrite(relayInput1Pin, HIGH); //turn off CW rotation
+      delay(DELAYBETWEENRELAYS);
+      relay2LastTimeOperating = millis();
+      digitalWrite(relayInput2Pin, LOW); //turn on CCW rotation
+    } else if(digitalRead(relayInput1Pin) == HIGH && ((millis() - relay2LastTimeOperating) >= long(DURATIONPERSPIN)) ){
+      digitalWrite(relayInput2Pin, HIGH); //turn off CCW rotation
+      delay(DELAYBETWEENRELAYS);
+      relay2LastTimeOperating = millis();
+      digitalWrite(relayInput1Pin, LOW); //turn on CW rotation
+    }
+  }
+
+  // digitalWrite(relayInput1Pin,LOW);
+  // delay(1000);
+  // digitalWrite(relayInput1Pin,HIGH);
+  // delay(1000);
 }
