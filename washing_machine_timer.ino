@@ -35,7 +35,7 @@ const int startButtonPin = 2;
 const int editButtonPin = 3;
 const int relayInput1Pin = 6;
 const int relayInput2Pin = 5;
-const int DELAYBETWEENRELAYS = 4000;  //4s
+const int DELAYBETWEENRELAYS = 3000;  //3s
 const int DURATIONPERSPIN = 5000;     //5s
 
 bool isWashing = false;
