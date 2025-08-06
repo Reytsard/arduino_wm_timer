@@ -1,130 +1,73 @@
+/**
+  Problem: Washing Machine Timer Replaced With Arduino timer and relays
+
+  The washing machine has a knob that needs to be turned to set its minutes. The washing machine turns CW and CCW to turn the machine.
+  The mechanical washing machine timer has a relay that turns on and off to make the machine move at a certain direction.
+
+  Pseudo code
+  1. set constant variables, delayBetweenRelays, durationPerSpin. Set variables like isWashing, isChangable
+  2. There is a button that can be pressed to change the time of the washing machine, intervals are in 5 mins.
+      This Button cannot be pressed when isWashing is true. This prevents the user to add/change time while it is turning.
+  3. There is a button that can be pressed to start the washing, this will not trigger if the input for the timer is 0. 
+      This button can be pressed to stop the washing of the machine, it will disable both relays making it not spin in any way.
+  4. When the washing has started, the first relay will be activated making the machine spin cw, after the duration per spin, 
+      the delayBetweenRelays will activate, this will ensure that the machine can stop after a certain time before turning the other way, CCW.
+
+  Modules needed for the arduino project
+  1. 1 Arduino Uno/Micro controller
+  2. Jumper Wires
+  3. 2 10k ohm resistor. (For the buttons)
+  4. 2 Channel 5v relay
+  5. IC2 Liquid Display
+
+  Libraries used
+  1. LiquidCrystal_I2C
+  2. Bounce2
+*/
+
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
+#include <Bounce2.h>
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
-//pins
-const int setTimerButtonPin = 13;
-const int startButtonPin = 12;
+const int startButtonPin = 2;
+const int editButtonPin = 3;
 
-//relay pins
-const int relayIn1Pin = 2;
-int relay1State = LOW;
-const int relayIn2Pin = 3;
-int relay2State = LOW;
-const unsigned long debounceDelay = 2;
-
-//option tracking
-bool isChangable = true;
-bool isTimerStarted = false;
-
-//set timer value
-int timerButtonState;
-int timerValue = 0;
-int timerLastButtonState = LOW;
-unsigned long lastDebounceTime = 0;
-
-//start button
-int startButtonState;
-int startButtonLastState = LOW;
-unsigned long startButtonLastDebounceTime = 0;
-
-//timer
-unsigned long countdownTimer = 0;
-
-//test variables
-unsigned long timer = 0;
+Bounce startButtonDebouncer = Bounce();
+Bounce editButtonDebouncer = Bounce();
 
 void setup() {
-  // put your setup code here, to run once:
   Serial.begin(9600);
+
+  pinMode(startButtonPin, INPUT_PULLUP);
+  pinMode(editButtonPin, INPUT_PULLUP);
+
+  startButtonDebouncer.attach(startButtonPin);
+  startButtonDebouncer.interval(25);
+
+  editButtonDebouncer.attach(editButtonPin);
+  editButtonDebouncer.interval(25);
+
+
   lcd.init();  // initialize the lcd
-  lcd.init();
   // lcd.backlight();
   // lcd.setCursor(1, 0);
   // lcd.print("Timer:");
   // displayTimer(timerValue);
 
-  pinMode(setTimerButtonPin, INPUT);
-  pinMode(startButtonPin, INPUT);
-  pinMode(relayIn1Pin, OUTPUT);
-  timer = millis();
 }
 
-long duration = 5000;
-int state = 0;
 void loop() {
-  
- 
+  startButtonDebouncer.update();
+  editButtonDebouncer.update();
 
-  
-
-  
-  
-  
-
-
-  // checkChangeTimerValue();
-  // checkStartValue();
-
-  if(isTimerStarted){
-    startTimer();
+  if(startButtonDebouncer.fell()){
+    //start has been pressed
   }
+
+  if(editButtonDebouncer.fell()){
+    //edit button has been pressed
+  }
+
 }
-
-void startTimer() {
-   long time = millis();
-
-  if(time - timer >= duration){
-    Serial.println("Timer Reached Duration");
-    if(state == 1){
-      state = 0;
-      // digitalWrite(relayIn1Pin,LOW);
-    }else if(state == 0){
-      state = 1;
-      // digitalWrite(relayIn1Pin,HIGH);
-    }
-    timer = time;
-  }
-
-  /*
-    Create a stop here maybe 3 seconds
-  */
-
-  if(time - timer >= duration){
-    Serial.println("Timer Reached Duration");
-    if(state == 1){
-      state = 0;
-      // digitalWrite(relayIn1Pin,LOW);
-    }else if(state == 0){
-      state = 1;
-      // digitalWrite(relayIn1Pin,HIGH);
-    }
-    timer = time;
-  }
-}
-
-void checkChangeTimerValue() {
-  // put your main code here, to run repeatedly:
-  timerButtonState = digitalRead(setTimerButtonPin);
-
-  //debounce
-  if (timerButtonState != timerLastButtonState) {
-    lastDebounceTime = millis();
-  }
-
-  if ((millis() - lastDebounceTime) < debounceDelay) {
-    if (timerButtonState != timerLastButtonState) {
-      timerLastButtonState = timerButtonState;
-    }
-    if (timerLastButtonState == HIGH) {
-      if (isChangable && !isTimerStarted) {
-        Serial.println("Pressed");
-        timerValue += 5;
-        if (timerValue > 35) {
-          clear2ndRowDisplay();
-          timerValue = 0;
-        }
-        displayTimer(timerValue);
-        // turnOnRelay();
-     
